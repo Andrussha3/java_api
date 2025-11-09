@@ -4,7 +4,6 @@ on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -17,13 +16,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Start SUT
-        # Запускаем SUT,
-        # имя файла SUT будет отличаться в каждой задаче.
-        # & означает, что в фоновом режиме не блокируем терминал для запуска тестов, 
-        # обязательно должен быть для запуска SUT в CI
         run: java -jar ./artifacts/app-mbank.jar &
+      - name: Wait for server to start
+        run: |
+          # Ждем пока сервер запустится и начнет принимать соединения
+          for i in {1..30}; do
+            if curl -f http://localhost:9999/api/v1/demo/accounts >/dev/null 2>&1; then
+              echo "Server is up and running!"
+              break
+            fi
+            echo "Waiting for server to start... attempt $i"
+            sleep 3
+          done
       - name: Build with Gradle
-        # Запускаем автотесты
-        # Для проектов на базе Selenide необходимо добавить параметр для запуска браузера
-        # в headless режиме -Dselenide.headless=true, параметр --info должен остаться
-        run: ./gradlew test --info  
+        run: ./gradlew test --info
